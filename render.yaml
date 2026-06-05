@@ -1,0 +1,76 @@
+services:
+  - type: web
+    name: archiver-bot
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r bot/requirements.txt
+    startCommand: cd bot && python main.py
+    healthCheckPath: /health
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_API_ID
+        sync: false
+      - key: TELEGRAM_API_HASH
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: archiver_bot
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: archiver-redis
+          property: connectionString
+      - key: ADMIN_USER_IDS
+        sync: false
+      - key: MANDATORY_CHANNEL_ID
+        sync: false
+      - key: MANDATORY_CHANNEL_USERNAME
+        sync: false
+      - key: BACKUP_BOT_USERNAME
+        sync: false
+      - key: PORT
+        value: "8080"
+
+  - type: worker
+    name: archiver-worker
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r bot/requirements.txt
+    startCommand: cd bot && python worker.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_API_ID
+        sync: false
+      - key: TELEGRAM_API_HASH
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: archiver_bot
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: archiver-redis
+          property: connectionString
+      - key: ADMIN_USER_IDS
+        sync: false
+
+  - type: cron
+    name: archiver-keepalive
+    env: python
+    region: oregon
+    plan: free
+    schedule: "*/14 * * * *"
+    buildCommand: pip install requests
+    startCommand: python -c "import requests; requests.get('https://archiver-bot.onrender.com/health', timeout=10)"
+
+  - type: redis
+    name: archiver-redis
+    region: oregon
+    plan: free
+    maxmemoryPolicy: allkeys-lru
